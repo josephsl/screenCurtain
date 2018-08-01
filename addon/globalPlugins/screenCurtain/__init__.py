@@ -12,7 +12,10 @@
 """Screen curtain implementation based on the windows magnification API."""
 
 import globalPluginHandler
-from . import winMagnification
+try:
+	from . import winMagnification
+except:
+	raise RuntimeError("Magnification attribute missing")
 from ctypes import byref
 import winVersion
 
