@@ -11,4 +11,4 @@ IMPORTANT: this is a proof of concept add-on. Once the relevant feature is inclu
 
 * Initial version.
 
-[1]: https://addons.nvda-project.org/files/get.php?file=nvda3208
+[1]: https://addons.nvda-project.org/files/get.php?file=nvda7857
