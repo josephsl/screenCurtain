@@ -73,22 +73,22 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	# The following functions came from NVDA Core's speech viewer toggle mechanics.
 
-	def onToggleScreenCurtain(self, evt, profileSwitched=False):
+	def onToggleScreenCurtain(self, evt, profileSwitched=False, immediateMessage=False):
 		if not self._screenCurtainActive:
 			winMagnification.Initialize()
 			winMagnification.SetFullscreenColorEffect(byref(TRANSFORM_BLACK))
 			self._screenCurtainActive = True
-			wx.CallLater(1000, ui.message, _("Screen curtain on"))
+			wx.CallLater(1000 if not immediateMessage else 0, ui.message, _("Screen curtain on"))
 		else:
 			winMagnification.SetFullscreenColorEffect(byref(TRANSFORM_BLACK))
 			winMagnification.Uninitialize()
 			self._screenCurtainActive = False
-			wx.CallLater(1000, ui.message, _("Screen curtain off"))
+			wx.CallLater(1000 if not immediateMessage else 0, ui.message, _("Screen curtain off"))
 		self.toggleScreenCurtain.Check(self._screenCurtainActive)
 		if not profileSwitched: config.conf["screenCurtain"]["active"] = self._screenCurtainActive
 
 	def script_toggleScreenCurtain(self, gesture):
-		self.onToggleScreenCurtain(None)
+		self.onToggleScreenCurtain(None, immediateMessage=True)
 	script_toggleScreenCurtain.__doc__ = _("Toggles screen curtain on or off")
 	script_toggleScreenCurtain.category = SCRCAT_TOOLS
 
