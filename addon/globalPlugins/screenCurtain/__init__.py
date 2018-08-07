@@ -45,13 +45,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Translators: The label for the menu item to toggle screen curtain.
 		self.toggleScreenCurtain = self.toolsMenu.AppendCheckItem(wx.ID_ANY, _("Screen curtain"))
 		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onToggleScreenCurtain, self.toggleScreenCurtain)
-		if config.conf["screenCurtain"]["startup"]:
+		if config.conf["screenCurtain"]["active"]:
 			winMagnification.Initialize()
 			winMagnification.SetFullscreenColorEffect(byref(TRANSFORM_BLACK))
 			import tones
 			tones.beep(1024, 100)
+			self._screenCurtainActive = True
+			self.toggleScreenCurtain.Check(self._screenCurtainActive)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(ScreenCurtainPanel)
-
+		if hasattr(config, "post_configProfileSwitch"):
+			config.post_configProfileSwitch.register(self.handleConfigProfileSwitch)
+		else:
+			config.configProfileSwitched.register(self.handleConfigProfileSwitch)
 
 	def terminate(self):
 		super(GlobalPlugin, self).terminate()
@@ -68,7 +73,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	# The following functions came from NVDA Core's speech viewer toggle mechanics.
 
-	def onToggleScreenCurtain(self, evt):
+	def onToggleScreenCurtain(self, evt, profileSwitched=False):
 		if not self._screenCurtainActive:
 			winMagnification.Initialize()
 			winMagnification.SetFullscreenColorEffect(byref(TRANSFORM_BLACK))
@@ -80,17 +85,20 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._screenCurtainActive = False
 			wx.CallLater(1000, ui.message, _("Screen curtain off"))
 		self.toggleScreenCurtain.Check(self._screenCurtainActive)
-		config.conf["screenCurtain"]["active"] = self._screenCurtainActive
+		if not profileSwitched: config.conf["screenCurtain"]["active"] = self._screenCurtainActive
 
 	def script_toggleScreenCurtain(self, gesture):
 		self.onToggleScreenCurtain(None)
 	script_toggleScreenCurtain.__doc__ = _("Toggles screen curtain on or off")
 	script_toggleScreenCurtain.category = SCRCAT_TOOLS
 
+	def handleConfigProfileSwitch(self):
+		if config.conf["screenCurtain"]["active"] != self._screenCurtainActive:
+			self.onToggleScreenCurtain(None, profileSwitched=True)
+
 # Add-on config database
 confspec = {
 	"active": "boolean(default=false)",
-	"startup": "boolean(default=false)",
 }
 config.conf.spec["screenCurtain"] = confspec
 
@@ -102,12 +110,10 @@ class ScreenCurtainPanel(gui.SettingsPanel):
 		sHelper = gui.guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 		self.screenCurtainActiveCheckBox=sHelper.addItem(wx.CheckBox(self, label=_("Use &screen curtain")))
 		self.screenCurtainActiveCheckBox.SetValue(config.conf["screenCurtain"]["active"])
-		# Startup flag can be toggled if and only if normal configuration is in use.
-		if config.conf.profiles[-1].name is None:
-			self.screenCurtainStartupCheckBox=sHelper.addItem(wx.CheckBox(self, label=_("Enable screen curtain at startup")))
-			self.screenCurtainStartupCheckBox.SetValue(config.conf["screenCurtain"]["startup"])
 
 	def onSave(self):
-		if config.conf.profiles[-1].name is None:
-			config.conf["screenCurtain"]["startup"]=self.screenCurtainStartupCheckBox.IsChecked()
 		config.conf["screenCurtain"]["active"] = self.screenCurtainActiveCheckBox.IsChecked()
+		if hasattr(config, "post_configProfileSwitch"):
+			config.post_configProfileSwitch.notify()
+		else:
+			config.configProfileSwitched.notify()
