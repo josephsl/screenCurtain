@@ -21,6 +21,8 @@ import winVersion
 import gui
 import wx
 from globalCommands import SCRCAT_TOOLS
+import config
+import ui
 
 TRANSFORM_BLACK = winMagnification.MAGCOLOREFFECT()
 TRANSFORM_BLACK.transform[4][4] = 1.0
@@ -43,7 +45,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Translators: The label for the menu item to toggle screen curtain.
 		self.toggleScreenCurtain = self.toolsMenu.AppendCheckItem(wx.ID_ANY, _("Screen curtain"))
 		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onToggleScreenCurtain, self.toggleScreenCurtain)
-		self.onToggleScreenCurtain(None)
+		if config.conf["screenCurtain"]["startup"]:
+			winMagnification.Initialize()
+			winMagnification.SetFullscreenColorEffect(byref(TRANSFORM_BLACK))
+			import tones
+			tones.beep(1024, 100)
+		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(ScreenCurtainPanel)
+
 
 	def terminate(self):
 		super(GlobalPlugin, self).terminate()
@@ -61,20 +69,45 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	# The following functions came from NVDA Core's speech viewer toggle mechanics.
 
 	def onToggleScreenCurtain(self, evt):
-		import tones
 		if not self._screenCurtainActive:
 			winMagnification.Initialize()
 			winMagnification.SetFullscreenColorEffect(byref(TRANSFORM_BLACK))
 			self._screenCurtainActive = True
-			tones.beep(1024, 100)
+			wx.CallLater(1000, ui.message, _("Screen curtain on"))
 		else:
 			winMagnification.SetFullscreenColorEffect(byref(TRANSFORM_BLACK))
 			winMagnification.Uninitialize()
 			self._screenCurtainActive = False
-			tones.beep(512, 100)
+			wx.CallLater(1000, ui.message, _("Screen curtain off"))
 		self.toggleScreenCurtain.Check(self._screenCurtainActive)
+		config.conf["screenCurtain"]["active"] = self._screenCurtainActive
 
 	def script_toggleScreenCurtain(self, gesture):
 		self.onToggleScreenCurtain(None)
 	script_toggleScreenCurtain.__doc__ = _("Toggles screen curtain on or off")
 	script_toggleScreenCurtain.category = SCRCAT_TOOLS
+
+# Add-on config database
+confspec = {
+	"active": "boolean(default=false)",
+	"startup": "boolean(default=false)",
+}
+config.conf.spec["screenCurtain"] = confspec
+
+class ScreenCurtainPanel(gui.SettingsPanel):
+	# Translators: This is the label for the Screen curtain settings panel.
+	title = _("Screen curtain")
+
+	def makeSettings(self, settingsSizer):
+		sHelper = gui.guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
+		self.screenCurtainActiveCheckBox=sHelper.addItem(wx.CheckBox(self, label=_("Use &screen curtain")))
+		self.screenCurtainActiveCheckBox.SetValue(config.conf["screenCurtain"]["active"])
+		# Startup flag can be toggled if and only if normal configuration is in use.
+		if config.conf.profiles[-1].name is None:
+			self.screenCurtainStartupCheckBox=sHelper.addItem(wx.CheckBox(self, label=_("Enable screen curtain at startup")))
+			self.screenCurtainStartupCheckBox.SetValue(config.conf["screenCurtain"]["startup"])
+
+	def onSave(self):
+		if config.conf.profiles[-1].name is None:
+			config.conf["screenCurtain"]["startup"]=self.screenCurtainStartupCheckBox.IsChecked()
+		config.conf["screenCurtain"]["active"] = self.screenCurtainActiveCheckBox.IsChecked()
