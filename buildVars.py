@@ -30,6 +30,8 @@ addon_info = {
 	"addon_minimumNVDAVersion" : "2018.2",
 	# Last NVDA version supported/tested
 	"addon_lastTestedNVDAVersion" : "2019.1",
+	# Minimum Windows version supported
+	"addon_minimumWindowsVersion" : "6.2.9200",
 }
 
 
